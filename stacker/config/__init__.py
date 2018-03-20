@@ -268,6 +268,14 @@ class Hook(Model):
     args = DictType(AnyType)
 
 
+class Target(Model):
+    name = StringType(required=True)
+
+    requires = ListType(StringType, serialize_when_none=False)
+
+    required_by = ListType(StringType, serialize_when_none=False)
+
+
 class Stack(Model):
     name = StringType(required=True)
 
@@ -284,6 +292,8 @@ class Stack(Model):
     description = StringType(serialize_when_none=False)
 
     requires = ListType(StringType, serialize_when_none=False)
+
+    required_by = ListType(StringType, serialize_when_none=False)
 
     locked = BooleanType(default=False)
 
@@ -391,6 +401,9 @@ class Config(Model):
         DictType(DictType(StringType)), serialize_when_none=False)
 
     lookups = DictType(StringType, serialize_when_none=False)
+
+    targets = ListType(
+        ModelType(Target), serialize_when_none=False)
 
     stacks = ListType(
         ModelType(Stack), default=[], validators=[not_empty_list])

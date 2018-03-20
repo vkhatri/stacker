@@ -15,6 +15,7 @@ from stacker.lookups.registry import (
 from stacker.plan import (
     Step,
     build_plan,
+    build_graph,
 )
 from stacker.exceptions import (
     CancelExecution,
@@ -71,8 +72,9 @@ class TestPlan(unittest.TestCase):
             definition=generate_definition('bastion', 1, requires=[vpc.name]),
             context=self.context)
 
-        plan = build_plan(description="Test", steps=[
+        graph = build_graph([
             Step(vpc, fn=None), Step(bastion, fn=None)])
+        plan = build_plan(description="Test", graph=graph)
 
         self.assertEqual(plan.graph.to_dict(), {
             'bastion.1': set(['vpc.1']),
@@ -92,8 +94,9 @@ class TestPlan(unittest.TestCase):
             calls.append(stack.fqn)
             return COMPLETE
 
+        graph = build_graph([Step(vpc, fn), Step(bastion, fn)])
         plan = build_plan(
-            description="Test", steps=[Step(vpc, fn), Step(bastion, fn)])
+            description="Test", graph=graph)
         plan.execute(walk)
 
         self.assertEquals(calls, ['namespace-vpc.1', 'namespace-bastion.1'])
@@ -115,9 +118,11 @@ class TestPlan(unittest.TestCase):
             calls.append(stack.fqn)
             return COMPLETE
 
+        graph = build_graph([
+            Step(vpc, fn), Step(db, fn), Step(app, fn)])
         plan = build_plan(
             description="Test",
-            steps=[Step(vpc, fn), Step(db, fn), Step(app, fn)],
+            graph=graph,
             targets=['db.1'])
         plan.execute(walk)
 
@@ -142,7 +147,9 @@ class TestPlan(unittest.TestCase):
 
         vpc_step = Step(vpc, fn)
         bastion_step = Step(bastion, fn)
-        plan = build_plan(description="Test", steps=[vpc_step, bastion_step])
+
+        graph = build_graph([vpc_step, bastion_step])
+        plan = build_plan(description="Test", graph=graph)
 
         with self.assertRaises(PlanFailed):
             plan.execute(walk)
@@ -169,7 +176,8 @@ class TestPlan(unittest.TestCase):
         vpc_step = Step(vpc, fn)
         bastion_step = Step(bastion, fn)
 
-        plan = build_plan(description="Test", steps=[vpc_step, bastion_step])
+        graph = build_graph([vpc_step, bastion_step])
+        plan = build_plan(description="Test", graph=graph)
         plan.execute(walk)
 
         self.assertEquals(calls, ['namespace-vpc.1', 'namespace-bastion.1'])
@@ -197,8 +205,9 @@ class TestPlan(unittest.TestCase):
         bastion_step = Step(bastion, fn)
         db_step = Step(db, fn)
 
-        plan = build_plan(description="Test", steps=[
+        graph = build_graph([
             vpc_step, bastion_step, db_step])
+        plan = build_plan(description="Test", graph=graph)
         with self.assertRaises(PlanFailed):
             plan.execute(walk)
 
@@ -225,26 +234,26 @@ class TestPlan(unittest.TestCase):
         vpc_step = Step(vpc, fn)
         bastion_step = Step(bastion, fn)
 
-        plan = build_plan(description="Test", steps=[
-            vpc_step, bastion_step])
+        graph = build_graph([vpc_step, bastion_step])
+        plan = build_plan(description="Test", graph=graph)
         plan.execute(walk)
 
         self.assertEquals(calls, ['namespace-vpc.1', 'namespace-bastion.1'])
 
-    def test_build_plan_missing_dependency(self):
+    def test_build_graph_missing_dependency(self):
         bastion = Stack(
             definition=generate_definition(
                 'bastion', 1, requires=['vpc.1']),
             context=self.context)
 
         with self.assertRaises(GraphError) as expected:
-            build_plan(description="Test", steps=[Step(bastion, None)])
+            build_graph([Step(bastion, None)])
         message = ("Error detected when adding 'vpc.1' "
                    "as a dependency of 'bastion.1': dependent node "
                    "vpc.1 does not exist")
         self.assertEqual(expected.exception.message, message)
 
-    def test_build_plan_cyclic_dependencies(self):
+    def test_build_graph_cyclic_dependencies(self):
         vpc = Stack(
             definition=generate_definition(
                 'vpc', 1),
@@ -259,9 +268,7 @@ class TestPlan(unittest.TestCase):
             context=self.context)
 
         with self.assertRaises(GraphError) as expected:
-            build_plan(
-                description="Test",
-                steps=[Step(vpc, None), Step(db, None), Step(app, None)])
+            build_graph([Step(vpc, None), Step(db, None), Step(app, None)])
         message = ("Error detected when adding 'db.1' "
                    "as a dependency of 'app.1': graph is "
                    "not acyclic")
@@ -289,7 +296,8 @@ class TestPlan(unittest.TestCase):
 
             steps += [Step(stack, None)]
 
-        plan = build_plan(description="Test", steps=steps)
+        graph = build_graph(steps)
+        plan = build_plan(description="Test", graph=graph)
 
         tmp_dir = tempfile.mkdtemp()
         try:
