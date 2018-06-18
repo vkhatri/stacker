@@ -66,9 +66,11 @@ def handler(value, provider, **kwargs):
     owners = values.pop('owners').split(',')
     describe_args["Owners"] = owners
 
-    if not values.get('name_regex'):
-        raise Exception("'name_regex' value required when using ami")
-    name_regex = values.pop('name_regex')
+    if not values.get('name_regex') and not values.get('name'):
+        raise Exception("'name_regex' or 'name' value required when using ami")
+
+    if values.get('name_regex'):
+        name_regex = values.pop('name_regex')
 
     executable_users = None
     if values.get('executable_users'):
@@ -76,6 +78,12 @@ def handler(value, provider, **kwargs):
         describe_args["ExecutableUsers"] = executable_users
 
     filters = []
+    if values.get('tags'):
+        for kv in values.pop('tags').split(','):
+            k, v = kv.split('=')
+            if k and v:
+                filters.append({'Name': "tag:{}".format(k), 'Values': [v]})
+
     for k, v in values.iteritems():
         filters.append({"Name": k, "Values": v.split(',')})
     describe_args["Filters"] = filters
@@ -84,8 +92,11 @@ def handler(value, provider, **kwargs):
 
     images = sorted(result['Images'], key=operator.itemgetter('CreationDate'),
                     reverse=True)
-    for image in images:
-        if re.match("^%s$" % name_regex, image['Name']):
-            return image['ImageId']
+    if values.get('name_regex'):
+        for image in images:
+            if re.match("^%s$" % name_regex, image['Name']):
+                return image['ImageId']
+    else:
+        return images[0]["ImageId"]
 
     raise ImageNotFound(value)

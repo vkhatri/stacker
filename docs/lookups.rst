@@ -371,8 +371,14 @@ Valid arguments::
   owners (comma delimited) REQUIRED ONCE:
       aws_account_id | amazon | self
 
-  name_regex (a regex) REQUIRED ONCE:
+  name_regex (a regex) OPTIONAL ONCE:
       e.g. my-ubuntu-server-[0-9]+
+
+  name (a string) OPTIONAL ONCE:
+      e.g. amzn-ami-hvm-2017.09.1.*-x86_64-gp2
+
+  tags (comma delimited) OPTIONAL ONCE:
+      e.g. tags:tagKey=tagValue,tagKey=tagValue
 
   executable_users (comma delimited) OPTIONAL ONCE:
       aws_account_id | amazon | self
@@ -387,7 +393,7 @@ Example::
   # the regex "server[0-9]+" and has "i386" as its architecture.
 
   # Note: The region is optional, and defaults to the current stacker region
-  ImageId: ${ami [<region>@]owners:self,888888888888,amazon name_regex:server[0-9]+ architecture:i386}
+  ImageId: ${ami [<region>@]owners:self,888888888888,amazon [name_regex:server[0-9]+] [name:amzn-ami-hvm-2017.09.1.*-x86_64-gp2] [tags:tagKey=tagValue,tagKey=tagValue] architecture:i386}
 
 .. _`hook_data lookup`:
 
